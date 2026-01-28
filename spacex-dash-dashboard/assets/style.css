@@ -1,0 +1,81 @@
+/* assets/style.css */
+:root{
+  --bg1: #aabaef;
+  --bg2: #8fdae5;
+  --card: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.10);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.70);
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+  background: radial-gradient(1200px 600px at 20% 10%, #aabaef 0%, transparent 60%),
+              radial-gradient(900px 500px at 90% 20%, #8fdae5 0%, transparent 55%),
+              linear-gradient(180deg, var(--bg1), var(--bg2));
+  color: var(--text);
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 22px 16px 40px;
+}
+
+.h1 {
+  text-align: center;
+  letter-spacing: 0.5px;
+  margin: 8px 0 4px;
+}
+
+.subtle {
+  text-align: center;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 14px;
+  backdrop-filter: blur(10px);
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 10px 0 16px;
+}
+
+.kpi {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.kpi .label { color: var(--muted); font-size: 12px; }
+.kpi .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+
+.filter-card {
+  position: relative;
+  z-index: 2000;
+  overflow: visible;
+  color: #4a5969ff;
+}
+
+/* react-select menu (Dash Dropdown) */
+.Select-menu-outer,
+.Select__menu,
+.Select__menu-portal {
+  z-index: 9999 !important;
+}
