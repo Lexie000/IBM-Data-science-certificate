@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpaceX Falcon 9 Launch Analysis — Jinmin Li</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --teal: #2ECFB0;
+  --teal-dim: rgba(46,207,176,0.15);
+  --teal-glow: rgba(46,207,176,0.4);
+  --bg: #050A0E;
+  --bg2: #0A1520;
+  --bg3: #0F1E2D;
+  --text: #E8F4F0;
+  --text-dim: #7A9EAB;
+  --white: #ffffff;
+  --slide-w: 100vw;
+  --slide-h: 100vh;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+html, body {
+  width:100%; height:100%; overflow:hidden;
+  background:var(--bg);
+  font-family:'Rajdhani', sans-serif;
+  color:var(--text);
+}
+
+/* ── STARFIELD ── */
+#stars {
+  position:fixed; inset:0; z-index:0;
+  pointer-events:none;
+}
+.star {
+  position:absolute; border-radius:50%;
+  background:white;
+  animation: twinkle var(--t) infinite ease-in-out;
+  opacity:0;
+}
+@keyframes twinkle {
+  0%,100%{opacity:0} 50%{opacity:var(--o)}
+}
+
+/* ── SCANLINE OVERLAY ── */
+#scanlines {
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom, transparent 0px, transparent 3px,
+    rgba(0,0,0,0.08) 3px, rgba(0,0,0,0.08) 4px
+  );
+}
+
+/* ── SLIDE CONTAINER ── */
+#deck {
+  position:relative; z-index:2;
+  width:100vw; height:100vh;
+  overflow:hidden;
+}
+
+.slide {
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; pointer-events:none;
+  transform:translateX(60px);
+  transition: opacity 0.6s cubic-bezier(.4,0,.2,1),
+              transform 0.6s cubic-bezier(.4,0,.2,1);
+}
+.slide.active {
+  opacity:1; pointer-events:all;
+  transform:translateX(0);
+}
+.slide.exit-left {
+  opacity:0;
+  transform:translateX(-60px);
+}
+
+/* ── SHARED LAYOUT HELPERS ── */
+.slide-inner {
+  width:min(1100px, 92vw);
+  position:relative;
+}
+
+/* accent bar */
+.accent-bar {
+  position:absolute; right:-30px; top:0; bottom:0;
+  width:6px; background:var(--teal);
+  box-shadow: 0 0 20px var(--teal-glow), 0 0 60px var(--teal-glow);
+}
+
+/* section tag */
+.tag {
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.75rem; letter-spacing:0.25em;
+  color:var(--teal); text-transform:uppercase;
+  margin-bottom:1rem; display:block;
+}
+
+/* main heading */
+.h1 {
+  font-family:'Orbitron', sans-serif;
+  font-size:clamp(2.2rem, 5vw, 4rem);
+  font-weight:900; line-height:1.05;
+  letter-spacing:-0.01em;
+  color:var(--white);
+  text-shadow:0 0 40px rgba(46,207,176,0.2);
+}
+.h1 .accent { color:var(--teal); }
+
+.h2 {
+  font-family:'Orbitron', sans-serif;
+  font-size:clamp(1.4rem, 3vw, 2.2rem);
+  font-weight:700; letter-spacing:0.04em;
+  color:var(--teal);
+  margin-bottom:2rem;
+  text-transform:uppercase;
+}
+
+.body-text {
+  font-size:clamp(0.95rem, 1.5vw, 1.15rem);
+  line-height:1.75; color:var(--text);
+  font-weight:400;
+}
+.body-text strong { color:var(--teal); font-weight:600; }
+
+/* bullet list */
+.bullets { list-style:none; }
+.bullets li {
+  display:flex; gap:1rem; align-items:flex-start;
+  margin-bottom:1.2rem;
+  font-size:clamp(0.9rem, 1.4vw, 1.1rem);
+  line-height:1.65; color:var(--text);
+  opacity:0; animation: fadeUp 0.5s forwards;
+}
+.bullets li:nth-child(1){animation-delay:.1s}
+.bullets li:nth-child(2){animation-delay:.2s}
+.bullets li:nth-child(3){animation-delay:.3s}
+.bullets li:nth-child(4){animation-delay:.4s}
+.bullet-dot {
+  min-width:8px; height:8px; border-radius:50%;
+  background:var(--teal); margin-top:0.5rem;
+  box-shadow:0 0 8px var(--teal);
+}
+@keyframes fadeUp {
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* split layout */
+.split {
+  display:grid; gap:4rem; align-items:center;
+}
+.split-2 { grid-template-columns:1fr 1fr; }
+.split-3 { grid-template-columns:2fr 3fr; }
+
+/* card */
+.card {
+  background:var(--bg2);
+  border:1px solid rgba(46,207,176,0.2);
+  border-radius:4px;
+  padding:1.8rem 2rem;
+  position:relative;
+  overflow:hidden;
+}
+.card::before {
+  content:''; position:absolute;
+  top:0; left:0; right:0; height:2px;
+  background:linear-gradient(90deg, transparent, var(--teal), transparent);
+}
+
+.browser-preview {
+  display:block;
+  margin-top:1.6rem;
+  text-decoration:none;
+  color:inherit;
+  border-radius:16px;
+  overflow:hidden;
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.12);
+  box-shadow:0 24px 60px rgba(0,0,0,0.45), 0 0 24px rgba(46,207,176,0.08);
+  transition:transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  max-width:520px;
+}
+.browser-preview:hover {
+  transform:translateY(-4px);
+  border-color:rgba(46,207,176,0.45);
+  box-shadow:0 30px 70px rgba(0,0,0,0.5), 0 0 30px rgba(46,207,176,0.16);
+}
+.browser-topbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  padding:0.9rem 1rem;
+  background:linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04));
+  border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.browser-dots {
+  display:flex;
+  gap:0.45rem;
+}
+.browser-dots span {
+  width:12px;
+  height:12px;
+  border-radius:50%;
+  display:block;
+}
+.browser-dots span:nth-child(1) { background:#ff5f57; }
+.browser-dots span:nth-child(2) { background:#febc2e; }
+.browser-dots span:nth-child(3) { background:#28c840; }
+.browser-url {
+  flex:1;
+  text-align:center;
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.72rem;
+  letter-spacing:0.08em;
+  color:var(--text-dim);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  padding:0.45rem 0.8rem;
+  border-radius:999px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
+}
+.browser-spacer {
+  width:56px;
+  flex-shrink:0;
+}
+.browser-shot {
+  position:relative;
+  aspect-ratio: 16 / 10;
+  overflow:hidden;
+  background:#050505;
+}
+.browser-shot img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+.browser-shot::after {
+  content:'Open SpaceX Falcon 9 page';
+  position:absolute;
+  right:14px;
+  bottom:14px;
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.68rem;
+  letter-spacing:0.12em;
+  color:#fff;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(255,255,255,0.14);
+  padding:0.45rem 0.7rem;
+  border-radius:999px;
+  backdrop-filter:blur(8px);
+}
+
+/* ── SLIDE 1: HERO ── */
+#s1 { background:var(--bg); }
+#s1 .slide-inner {
+  display:flex; flex-direction:column;
+  justify-content:center; min-height:80vh;
+}
+#s1 .hero-sub {
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.8rem; letter-spacing:0.3em;
+  color:var(--teal); text-transform:uppercase;
+  margin-bottom:2rem; opacity:0.8;
+}
+#s1 .hero-title {
+  font-family:'Orbitron', sans-serif;
+  font-size:clamp(3rem, 7vw, 6.5rem);
+  font-weight:900; line-height:0.95;
+  letter-spacing:-0.02em; color:var(--white);
+  margin-bottom:1.5rem;
+}
+#s1 .hero-title .line2 { color:var(--teal); }
+#s1 .hero-meta {
+  display:flex; gap:2.5rem; flex-wrap:wrap;
+  margin-top:2rem;
+}
+#s1 .meta-item {
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.75rem; letter-spacing:0.15em;
+  color:var(--text-dim); text-transform:uppercase;
+}
+#s1 .meta-item span { color:var(--teal); display:block; font-size:0.9rem; }
+
+/* glowing circle */
+.glow-circle {
+  position:absolute;
+  border-radius:50%;
+  filter:blur(80px);
+  pointer-events:none;
+}
+
+/* rocket trail decoration */
+#s1 .deco {
+  position:absolute; right:5%; top:50%;
+  transform:translateY(-50%);
+  opacity:0.07;
+  font-family:'Orbitron', sans-serif;
+  font-size:18rem; font-weight:900;
+  color:var(--teal); line-height:1;
+  pointer-events:none; user-select:none;
+}
+
+/* ── SLIDE 5: EDA CHART ── */
+.chart-bar-wrap {
+  display:flex; align-items:flex-end; gap:10px;
+  height:160px; margin-top:1rem;
+}
+.bar-col { display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; }
+.bar {
+  width:100%; border-radius:2px 2px 0 0;
+  background:linear-gradient(to top, #1a8c79, var(--teal));
+  box-shadow:0 0 10px var(--teal-glow);
+  transition:height 1s cubic-bezier(.4,0,.2,1);
+  min-height:4px;
+}
+.bar-label {
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.58rem; color:var(--text-dim);
+  text-align:center; letter-spacing:0.05em;
+}
+.chart-axis {
+  font-family:'Share Tech Mono', monospace;
+  font-size:0.7rem; color:var(--text-dim); margin-top:0.5rem;
+}
+
+/* ── SLIDE 9: ML MODELS ── */
+.model-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:1.2rem;
+  margin-top:1.5rem;
+}
+.model-card {
+  background:var(--bg2); border-radius:4px;
+  border:1px solid rgba(46,207,176,0.15);
+  padding:1.5rem; position:relative; overflow:hidden;
+}
+.model-card.best { border-color:var(--teal); }
+.model-card.best::before {
+  content:'BEST'; position:absolute; top:10px; right:12px;
+  font-family:'Share Tech Mono',monospace; font-size:0.6rem;
+  letter-spacing:0.15em; color:var(--teal);
+}
+.model-name {
+  font-family:'Orbitron',sans-serif; font-size:0.85rem;
+  font-weight:700; letter-spacing:0.06em; color:var(--text);
+  margin-bottom:0.8rem; text-transform:uppercase;
+}
+.model-score {
+  font-family:'Orbitron',sans-serif;
+  font-size:2.2rem; font-weight:900; color:var(--teal);
+  line-height:1;
+}
+.model-card.low .model-score { color:#e07070; }
+.score-bar-bg {
+  height:4px; background:rgba(255,255,255,0.08);
+  border-radius:2px; margin-top:0.8rem;
+}
+.score-bar-fill {
+  height:100%; border-radius:2px;
+  background:linear-gradient(90deg, var(--teal), #20e8c8);
+  box-shadow:0 0 8px var(--teal-glow);
+  transition:width 1.2s cubic-bezier(.4,0,.2,1);
+}
+.model-card.low .score-bar-fill { background:#e07070; box-shadow:none; }
+
+/* ── SLIDE 8: INSIGHTS ── */
+.insight-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:1rem;
+}
+.insight-item {
+  background:var(--bg2);
+  border-left:3px solid var(--teal);
+  padding:1rem 1.2rem;
+  border-radius:0 4px 4px 0;
+  opacity:0; animation:fadeUp 0.5s forwards;
+}
+.insight-item:nth-child(1){animation-delay:.1s}
+.insight-item:nth-child(2){animation-delay:.2s}
+.insight-item:nth-child(3){animation-delay:.3s}
+.insight-item:nth-child(4){animation-delay:.4s}
+.insight-label {
+  font-family:'Share Tech Mono',monospace;
+  font-size:0.65rem; letter-spacing:0.2em;
+  color:var(--teal); text-transform:uppercase; margin-bottom:0.4rem;
+}
+.insight-value {
+  font-family:'Orbitron',sans-serif;
+  font-size:0.95rem; font-weight:700; color:var(--white);
+  line-height:1.3;
+}
+.insight-detail {
+  font-size:0.82rem; color:var(--text-dim); margin-top:0.3rem;
+  line-height:1.4;
+}
+
+/* ── SLIDE 11: THANK YOU ── */
+#s11 .big-circle {
+  position:absolute; border-radius:50%;
+  background:var(--teal);
+  width:min(60vw, 60vh); height:min(60vw, 60vh);
+  left:50%; top:50%;
+  transform:translate(-30%, -50%);
+  z-index:-1;
+  filter:blur(2px);
+}
+#s11 .ty-content {
+  position:relative; z-index:2;
+}
+#s11 .ty-title {
+  font-family:'Orbitron',sans-serif;
+  font-size:clamp(3rem, 8vw, 7rem);
+  font-weight:900; color:var(--bg);
+  line-height:0.9; letter-spacing:-0.02em;
+  text-shadow:none;
+  mix-blend-mode:multiply;
+}
+#s11 .ty-name { font-size:1.4rem; font-weight:600; color:var(--text); margin-top:2rem; }
+#s11 .ty-link {
+  font-family:'Share Tech Mono',monospace;
+  font-size:0.85rem; color:var(--teal);
+  text-decoration:none; display:block; margin-top:0.5rem;
+  border-bottom:1px solid transparent;
+  transition:border-color 0.2s;
+}
+#s11 .ty-link:hover { border-color:var(--teal); }
+
+/* ── NAVIGATION ── */
+#nav {
+  position:fixed; bottom:2.5rem; left:50%;
+  transform:translateX(-50%);
+  z-index:100;
+  display:flex; align-items:center; gap:2rem;
+}
+.nav-btn {
+  background:rgba(46,207,176,0.08);
+  border:1px solid rgba(46,207,176,0.3);
+  color:var(--teal); width:44px; height:44px;
+  border-radius:50%; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  font-size:1.1rem; transition:all 0.2s;
+}
+.nav-btn:hover {
+  background:var(--teal-dim);
+  box-shadow:0 0 20px var(--teal-glow);
+}
+.nav-btn:disabled { opacity:0.2; cursor:default; }
+
+#progress-dots {
+  display:flex; gap:8px; align-items:center;
+}
+.dot {
+  width:6px; height:6px; border-radius:50%;
+  background:rgba(46,207,176,0.25);
+  cursor:pointer; transition:all 0.3s;
+}
+.dot.active {
+  background:var(--teal);
+  box-shadow:0 0 8px var(--teal);
+  width:20px; border-radius:3px;
+}
+
+/* slide counter */
+#counter {
+  position:fixed; top:1.5rem; right:2rem; z-index:100;
+  font-family:'Share Tech Mono',monospace;
+  font-size:0.75rem; letter-spacing:0.15em;
+  color:var(--text-dim);
+}
+#counter span { color:var(--teal); }
+
+/* progress bar top */
+#topbar {
+  position:fixed; top:0; left:0; z-index:200;
+  height:2px;
+  background:linear-gradient(90deg, var(--teal), #20e8c8);
+  box-shadow:0 0 10px var(--teal-glow);
+  transition:width 0.4s ease;
+}
+
+/* keyboard hint */
+#hint {
+  position:fixed; bottom:6rem; right:2rem; z-index:100;
+  font-family:'Share Tech Mono',monospace;
+  font-size:0.65rem; letter-spacing:0.1em;
+  color:var(--text-dim); opacity:0.5;
+  display:flex; gap:6px; align-items:center;
+}
+.kbd {
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:3px; padding:2px 6px;
+}
+
+/* responsive */
+@media (max-width: 700px) {
+  .split-2, .split-3 { grid-template-columns:1fr; gap:2rem; }
+  .model-grid { grid-template-columns:1fr; }
+  .insight-grid { grid-template-columns:1fr; }
+  #s1 .hero-title { font-size:2.8rem; }
+  #s1 .deco { display:none; }
+  .accent-bar { right:-15px; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div id="scanlines"></div>
+<div id="topbar"></div>
+<div id="counter">SLIDE <span id="cur">01</span> / <span id="tot">10</span></div>
+<div id="hint">
+  <span class="kbd">←</span><span class="kbd">→</span> NAVIGATE
+</div>
+
+<div id="deck">
+
+  <!-- ── SLIDE 1: HERO ── -->
+  <section class="slide active" id="s1">
+    <div class="slide-inner">
+      <div class="glow-circle" style="width:500px;height:500px;background:rgba(46,207,176,0.06);top:-100px;right:-100px;"></div>
+      <div class="glow-circle" style="width:300px;height:300px;background:rgba(46,207,176,0.04);bottom:-50px;left:-80px;"></div>
+      <div class="deco">F9</div>
+      <div class="hero-sub">Data Science Project · Western University</div>
+      <h1 class="hero-title">
+        SPACEX<br>
+        <span class="line2">FALCON 9</span><br>
+        LAUNCH
+      </h1>
+      <div style="font-family:'Orbitron',sans-serif;font-size:clamp(1.4rem,3vw,2.2rem);font-weight:400;color:rgba(255,255,255,0.35);letter-spacing:0.15em;">ANALYSIS</div>
+      <div class="hero-meta">
+        <div class="meta-item"><span>JINMIN LI</span>Author</div>
+        <div class="meta-item"><span>WESTERN UNIVERSITY</span>Institution</div>
+        <div class="meta-item"><span>OCT 21, 2025</span>Date</div>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 2: OVERVIEW ── -->
+  <section class="slide" id="s2">
+    <div class="slide-inner split split-3">
+      <div>
+        <span class="tag">// 01 · Introduction</span>
+        <h2 class="h2">Project Overview<br>& Motivation</h2>
+        <div style="width:50px;height:3px;background:var(--teal);margin-bottom:2rem;box-shadow:0 0 10px var(--teal);"></div>
+        <a class="browser-preview" href="https://www.spacex.com/vehicles/falcon-9" target="_blank" aria-label="Open SpaceX Falcon 9 page">
+          <div class="browser-topbar">
+            <div class="browser-dots" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <div class="browser-url">https://www.spacex.com/vehicles/falcon-9</div>
+            <div class="browser-spacer" aria-hidden="true"></div>
+          </div>
+          <div class="browser-shot">
+            <img src="./截屏2026-03-29 上午12.30.33.png" alt="Preview of the SpaceX Falcon 9 webpage">
+          </div>
+        </a>
+      </div>
+      <ul class="bullets">
+        <li>
+          <div class="bullet-dot"></div>
+          <div><strong>Reusable Boosters:</strong> Falcon 9 first stages can land and fly again, which is a major reason SpaceX can reduce launch cost.</div>
+        </li>
+        <li>
+          <div class="bullet-dot"></div>
+          <div><strong>Key Variables:</strong> The analysis focuses on launch site, payload mass, orbit, and booster version.</div>
+        </li>
+        <li>
+          <div class="bullet-dot"></div>
+          <div><strong>Goal:</strong> Predict whether the first stage will land successfully and identify the patterns behind that outcome.</div>
+        </li>
+      </ul>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 3: DATA SOURCES ── -->
+  <section class="slide" id="s3">
+    <div class="slide-inner">
+      <span class="tag">// 02 · Data Collection</span>
+      <h2 class="h2">Data Sources</h2>
+      <div class="split split-2" style="margin-top:0">
+        <div class="card">
+          <div style="font-family:'Orbitron',sans-serif;font-size:0.75rem;letter-spacing:0.2em;color:var(--teal);margin-bottom:1rem;">SPACEX REST API</div>
+          <p class="body-text">Collected Falcon 9 launch dates, sites, payloads, and outcomes from the SpaceX REST API.</p>
+        </div>
+        <div class="card">
+          <div style="font-family:'Orbitron',sans-serif;font-size:0.75rem;letter-spacing:0.2em;color:var(--teal);margin-bottom:1rem;">WIKIPEDIA SCRAPING</div>
+          <p class="body-text">Scraped Wikipedia to capture booster versions and launch history details.</p>
+        </div>
+        <div class="card" style="grid-column:1/-1;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:0.75rem;letter-spacing:0.2em;color:var(--teal);margin-bottom:1rem;">COMBINED DATASET</div>
+          <p class="body-text">Merged both sources into one cleaned dataset for analysis and modeling.</p>
+        </div>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 4: DATA WRANGLING ── -->
+  <section class="slide" id="s4">
+    <div class="slide-inner split split-3">
+      <div>
+        <span class="tag">// 03 · Preprocessing</span>
+        <h2 class="h2">Data Wrangling<br>& Cleaning</h2>
+        <div style="width:50px;height:3px;background:var(--teal);box-shadow:0 0 10px var(--teal);"></div>
+      </div>
+      <ul class="bullets">
+        <li>
+          <div class="bullet-dot"></div>
+          <div><strong>Filtering:</strong> Kept Falcon 9 missions only.</div>
+        </li>
+        <li>
+          <div class="bullet-dot"></div>
+          <div><strong>Cleaning:</strong> Standardized formats and handled missing values.</div>
+        </li>
+        <li>
+          <div class="bullet-dot"></div>
+          <div><strong>Target Label:</strong> Converted landing outcome into a binary variable: <strong>1</strong> for success, <strong>0</strong> for failure.</div>
+        </li>
+        <li>
+          <div class="bullet-dot"></div>
+          <div><strong>Validation:</strong> Checked launch counts and outcome distributions before modeling.</div>
+        </li>
+      </ul>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 5: EDA ── -->
+  <section class="slide" id="s5">
+    <div class="slide-inner">
+      <span class="tag">// 04 · Analysis + Dashboard</span>
+      <h2 class="h2">EDA & Dashboard Highlights</h2>
+      <div class="split split-2" style="margin-top:0;align-items:start">
+        <div class="card">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:0.2em;color:var(--text-dim);margin-bottom:0.8rem;">SUCCESS RATE BY ORBIT TYPE</div>
+          <div class="chart-bar-wrap" id="eda-chart">
+            <!-- bars injected by JS -->
+          </div>
+          <div class="chart-axis" style="text-align:center;margin-top:0.8rem;">Orbit</div>
+        </div>
+        <ul class="bullets">
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>Launch Site:</strong> CCAFS SLC-40 had the most launches, while KSC LC-39A delivered the strongest success record.</div>
+          </li>
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>Payload:</strong> Medium payloads around 2,000-4,000 kg were the most recoverable.</div>
+          </li>
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>Booster Version:</strong> Newer Falcon 9 FT and Block 5 boosters outperformed older versions.</div>
+          </li>
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>Dashboard Use:</strong> Interactive filters made it easier to compare sites, payload ranges, and outcomes quickly.</div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 7: DASHBOARD FEATURES ── -->
+  <section class="slide" id="s7">
+    <div class="slide-inner">
+      <span class="tag">// 05 · Dashboard</span>
+      <h2 class="h2">Dashboard Architecture</h2>
+      <div class="split split-3" style="margin-top:0;align-items:start">
+        <div style="display:flex;flex-direction:column;gap:1rem;">
+          <div class="card" style="border-color:rgba(46,207,176,0.4);">
+            <div style="font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:0.15em;color:var(--teal);margin-bottom:0.6rem;">INPUTS</div>
+            <p class="body-text" style="font-size:0.92rem;"><strong>Dropdown</strong> — choose site or all sites<br><strong>Slider</strong> — filter payload mass range</p>
+          </div>
+          <div class="card">
+            <div style="font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:0.15em;color:var(--teal);margin-bottom:0.6rem;">OUTPUTS</div>
+            <p class="body-text" style="font-size:0.92rem;"><strong>Pie Chart</strong> — success count by site<br><strong>Scatter Plot</strong> — payload mass vs. landing outcome</p>
+          </div>
+        </div>
+        <div class="card" style="height:100%;min-height:200px;display:flex;flex-direction:column;justify-content:space-between;">
+          <div style="font-family:'Orbitron',sans-serif;font-size:0.7rem;letter-spacing:0.15em;color:var(--teal);margin-bottom:1rem;">DASH CALLBACKS — REACTIVE PIPELINE</div>
+          <!-- mini pipeline diagram -->
+          <div style="display:flex;flex-direction:column;gap:0.5rem;font-family:'Share Tech Mono',monospace;font-size:0.75rem;">
+            <div style="display:flex;align-items:center;gap:1rem;">
+              <div style="background:var(--teal-dim);border:1px solid var(--teal);border-radius:3px;padding:0.4rem 0.8rem;color:var(--teal);white-space:nowrap;">Site Dropdown</div>
+              <div style="color:var(--text-dim);">──▶</div>
+              <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.1);border-radius:3px;padding:0.4rem 0.8rem;color:var(--text-dim);white-space:nowrap;">Callback fn()</div>
+              <div style="color:var(--text-dim);">──▶</div>
+              <div style="background:var(--teal-dim);border:1px solid var(--teal);border-radius:3px;padding:0.4rem 0.8rem;color:var(--teal);">Charts</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:1rem;">
+              <div style="background:var(--teal-dim);border:1px solid var(--teal);border-radius:3px;padding:0.4rem 0.8rem;color:var(--teal);white-space:nowrap;">Mass Slider</div>
+              <div style="color:var(--text-dim);">──▶</div>
+              <div style="background:var(--bg3);border:1px solid rgba(255,255,255,0.1);border-radius:3px;padding:0.4rem 0.8rem;color:var(--text-dim);white-space:nowrap;">Filter data</div>
+              <div style="color:var(--text-dim);">──▶</div>
+              <div style="background:var(--teal-dim);border:1px solid var(--teal);border-radius:3px;padding:0.4rem 0.8rem;color:var(--teal);">Re-render</div>
+            </div>
+          </div>
+          <p class="body-text" style="font-size:0.88rem;margin-top:1.2rem;color:var(--text-dim);">Dash callbacks refresh the charts whenever filters change.</p>
+        </div>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 8: KEY INSIGHTS ── -->
+  <section class="slide" id="s8">
+    <div class="slide-inner">
+      <span class="tag">// 06 · Findings</span>
+      <h2 class="h2">Key Insights from Dashboard</h2>
+      <div class="insight-grid">
+        <div class="insight-item">
+          <div class="insight-label">🏆 Top Launch Site</div>
+          <div class="insight-value">KSC LC-39A</div>
+          <div class="insight-detail">Best overall landing performance in the dataset.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-label">📈 Highest Success Rate</div>
+          <div class="insight-value">≈ 76.9% — KSC LC-39A</div>
+          <div class="insight-detail">Most reliable site among the major launch pads.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-label">✅ Optimal Payload Range</div>
+          <div class="insight-value">~2,000 – 4,000 kg</div>
+          <div class="insight-detail">Best range for successful recovery.</div>
+        </div>
+        <div class="insight-item">
+          <div class="insight-label">⚠️ Challenging Range</div>
+          <div class="insight-value">~6,000 – 8,000 kg</div>
+          <div class="insight-detail">Heavier missions were harder to recover.</div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:1.2rem;padding:1rem 1.5rem;">
+        <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;letter-spacing:0.2em;color:var(--teal);">🚀 BEST BOOSTER — </span>
+        <span class="body-text" style="font-size:0.95rem;"> <strong>Block 5</strong> was the strongest booster family, with Falcon 9 FT also showing solid performance.</span>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 9: ML MODELS ── -->
+  <section class="slide" id="s9">
+    <div class="slide-inner">
+      <span class="tag">// 07 · Prediction</span>
+      <h2 class="h2">Machine Learning Models</h2>
+      <div class="model-grid" id="model-grid">
+        <div class="model-card">
+          <div class="model-name">Logistic Regression</div>
+          <div class="model-score">83.33%</div>
+          <div class="body-text" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.4rem;">CV: 83.52%</div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:0%" data-w="83.33"></div></div>
+        </div>
+        <div class="model-card low">
+          <div class="model-name">Decision Tree</div>
+          <div class="model-score">77.78%</div>
+          <div class="body-text" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.4rem;">CV: 84.67%</div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:0%" data-w="77.78"></div></div>
+        </div>
+        <div class="model-card">
+          <div class="model-name">SVM</div>
+          <div class="model-score">83.33%</div>
+          <div class="body-text" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.4rem;">CV: 83.43%</div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:0%" data-w="83.33"></div></div>
+        </div>
+        <div class="model-card">
+          <div class="model-name">KNN</div>
+          <div class="model-score">83.33%</div>
+          <div class="body-text" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.4rem;">CV: 83.33%</div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:0%" data-w="83.33"></div></div>
+        </div>
+        <div class="model-card best">
+          <div class="model-name">XGBoost</div>
+          <div class="model-score">83.33%</div>
+          <div class="body-text" style="font-size:0.82rem;color:var(--text-dim);margin-top:0.4rem;">CV: 86.19%</div>
+          <div class="score-bar-bg"><div class="score-bar-fill" style="width:0%" data-w="83.33"></div></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:1.5rem;padding:1rem 1.5rem;">
+        <p class="body-text" style="font-size:0.95rem;"><strong>Result:</strong> Logistic Regression, SVM, KNN, and XGBoost tied on test accuracy at <strong>83.33%</strong>. <strong>XGBoost</strong> is the preferred model because it also achieved the strongest cross-validation score at <strong>86.19%</strong>.</p>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 10: REFLECTIONS ── -->
+  <section class="slide" id="s10">
+    <div class="slide-inner">
+      <span class="tag">// 08 · Reflections</span>
+      <h2 class="h2">Summary & Lessons Learned</h2>
+      <div class="split split-2" style="margin-top:0;align-items:start">
+        <ul class="bullets">
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>End-to-End Workflow:</strong> This project covered collection, cleaning, visualization, and prediction in one pipeline.</div>
+          </li>
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>Feature Insight:</strong> Payload, launch site, and booster version were the most useful signals for recovery success.</div>
+          </li>
+        </ul>
+        <ul class="bullets">
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>Dashboard Value:</strong> Interactive charts made the patterns much easier to explain than static plots alone.</div>
+          </li>
+          <li>
+            <div class="bullet-dot"></div>
+            <div><strong>Final Takeaway:</strong> XGBoost was the most balanced model after comparing both test accuracy and cross-validation performance.</div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+  <!-- ── SLIDE 11: THANK YOU ── -->
+  <section class="slide" id="s11">
+    <div class="slide-inner" style="position:relative;">
+      <div class="big-circle"></div>
+      <div class="ty-content">
+        <div class="tag" style="margin-bottom:1rem;">// 09 · Contact</div>
+        <div class="ty-title">THANK<br>YOU</div>
+        <div class="ty-name">Jinmin Li</div>
+        <a href="mailto:jli3928@uwo.ca" class="ty-link">jli3928@uwo.ca</a>
+        <a href="https://github.com/Lexie000/IBM-Data-science-project" target="_blank" class="ty-link">github.com/Lexie000/IBM-Data-science-project</a>
+        <a href="https://www.linkedin.com/in/jinmin0829/" target="_blank" class="ty-link">linkedin.com/in/jinmin0829</a>
+        <a href="https://lexie000.github.io/" target="_blank" class="ty-link">lexie000.github.io</a>
+      </div>
+    </div>
+    <div class="accent-bar"></div>
+  </section>
+
+</div><!-- #deck -->
+
+<!-- nav -->
+<div id="nav">
+  <button class="nav-btn" id="prev" onclick="go(-1)" disabled>&#8592;</button>
+  <div id="progress-dots"></div>
+  <button class="nav-btn" id="next" onclick="go(1)">&#8594;</button>
+</div>
+
+<script>
+// ── STARS ──
+(function(){
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let W, H, stars=[];
+  function resize(){ W=canvas.width=window.innerWidth; H=canvas.height=window.innerHeight; initStars(); }
+  function initStars(){
+    stars=[];
+    for(let i=0;i<180;i++){
+      stars.push({x:Math.random()*W, y:Math.random()*H,
+        r:Math.random()*1.2+0.2, o:Math.random()*0.6+0.1,
+        t:Math.random()*3000+1500, phase:Math.random()*Math.PI*2});
+    }
+  }
+  function draw(ts){
+    ctx.clearRect(0,0,W,H);
+    stars.forEach(s=>{
+      const a = s.o*(0.5+0.5*Math.sin(ts/s.t*Math.PI*2+s.phase));
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,255,255,${a})`; ctx.fill();
+    });
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',resize);
+  resize(); requestAnimationFrame(draw);
+})();
+
+// ── SLIDES ──
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+let current = 0;
+
+// build dots
+const dotsEl = document.getElementById('progress-dots');
+slides.forEach((_,i)=>{
+  const d = document.createElement('div');
+  d.className='dot'+(i===0?' active':'');
+  d.onclick=()=>goTo(i);
+  dotsEl.appendChild(d);
+});
+
+function updateUI(){
+  document.getElementById('cur').textContent = String(current+1).padStart(2,'0');
+  document.getElementById('prev').disabled = current===0;
+  document.getElementById('next').disabled = current===total-1;
+  document.querySelectorAll('.dot').forEach((d,i)=>d.classList.toggle('active',i===current));
+  document.getElementById('topbar').style.width = ((current+1)/total*100)+'%';
+}
+
+function goTo(idx){
+  if(idx===current||idx<0||idx>=total) return;
+  const dir = idx > current ? 1 : -1;
+  slides[current].classList.remove('active');
+  slides[current].style.transform = `translateX(${-dir*60}px)`;
+  slides[current].style.opacity = '0';
+  slides[current].style.pointerEvents = 'none';
+  setTimeout(()=>{ slides[current].style.transform=''; }, 650);
+  current = idx;
+  slides[current].style.transform = `translateX(${dir*60}px)`;
+  slides[current].style.opacity = '0';
+  slides[current].style.pointerEvents = '';
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      slides[current].classList.add('active');
+      slides[current].style.transform='translateX(0)';
+      slides[current].style.opacity='1';
+    });
+  });
+  updateUI();
+  onSlideEnter(current);
+}
+
+function go(d){ goTo(current+d); }
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='ArrowRight'||e.key==='ArrowDown') go(1);
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp') go(-1);
+});
+
+// touch swipe
+let tx=null;
+document.addEventListener('touchstart',e=>tx=e.touches[0].clientX);
+document.addEventListener('touchend',e=>{
+  if(tx===null)return;
+  const dx=e.changedTouches[0].clientX-tx;
+  if(Math.abs(dx)>50) go(dx<0?1:-1);
+  tx=null;
+});
+
+// ── PER-SLIDE ANIMATIONS ──
+function onSlideEnter(idx){
+  if(idx===4){ // EDA chart
+    renderEDA();
+  }
+  if(idx===7){ // ML bars
+    setTimeout(()=>{
+      document.querySelectorAll('.score-bar-fill').forEach(b=>{
+        b.style.width = b.dataset.w + '%';
+      });
+    }, 300);
+  }
+}
+
+// EDA bar chart
+function renderEDA(){
+  const data=[
+    {label:'ES-L1',v:1.0},{label:'GEO',v:1.0},{label:'GTO',v:0.5},
+    {label:'HEO',v:1.0},{label:'ISS',v:0.62},{label:'LEO',v:0.72},
+    {label:'MEO',v:0.67},{label:'PO',v:0.67},{label:'SO',v:1.0},
+    {label:'SSO',v:1.0},{label:'VLEO',v:0.86}
+  ];
+  const wrap=document.getElementById('eda-chart');
+  wrap.innerHTML='';
+  const maxH=140;
+  data.forEach(d=>{
+    const col=document.createElement('div');
+    col.className='bar-col';
+    const bar=document.createElement('div');
+    bar.className='bar';
+    bar.style.height='0px';
+    bar.style.transition='height 1s cubic-bezier(.4,0,.2,1)';
+    const lbl=document.createElement('div');
+    lbl.className='bar-label';
+    lbl.textContent=d.label;
+    col.appendChild(bar); col.appendChild(lbl);
+    wrap.appendChild(col);
+    setTimeout(()=>{ bar.style.height=(d.v*maxH)+'px'; },200);
+  });
+}
+
+document.getElementById('tot').textContent = String(total).padStart(2,'0');
+updateUI();
+</script>
+</body>
+</html>
